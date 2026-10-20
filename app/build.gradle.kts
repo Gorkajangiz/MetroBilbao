@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    id("com.google.android.libraries.mapsplatform.secrets-gradle-plugin")
 }
 
 android {
@@ -35,7 +36,10 @@ android {
     }
 }
 
-// ÚNICO CAMBIO: elimina la dependencia antigua de IntelliJ que choca con la de JetBrains
+secrets {
+    propertiesFileName = "secrets.properties"
+}
+
 configurations.all {
     exclude(group = "com.intellij", module = "annotations")
 }
