@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">MetroBilbao</string>
+    <string name="gtfs_url">https://ctb-gtfs.s3.eu-south-2.amazonaws.com/metrobilbao.zip</string>
+</resources>

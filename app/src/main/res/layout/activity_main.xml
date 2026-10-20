@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+    <!-- iOS-style floating tab bar: icons only, pill indicator slides -->
+    <FrameLayout
+        android:id="@+id/navBarContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="28dp"
+        android:elevation="16dp">
+
+        <!-- Frosted-glass capsule background -->
+        <LinearLayout
+            android:id="@+id/navBar"
+            android:layout_width="wrap_content"
+            android:layout_height="52dp"
+            android:orientation="horizontal"
+            android:background="@drawable/bg_navbar_glass"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:gravity="center_vertical">
+
+            <!-- Sliding pill indicator (positioned programmatically) -->
+            <View
+                android:id="@+id/pillIndicator"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:visibility="invisible"/>
+
+            <FrameLayout
+                android:id="@+id/tabMapa"
+                android:layout_width="56dp"
+                android:layout_height="40dp"
+                android:layout_margin="3dp">
+                <View
+                    android:id="@+id/pillMapa"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_tab_pill_active"
+                    android:alpha="0"/>
+                <ImageView
+                    android:id="@+id/iconMapa"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_map"
+                    android:contentDescription="Mapa"/>
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/tabViaje"
+                android:layout_width="56dp"
+                android:layout_height="40dp"
+                android:layout_margin="3dp">
+                <View
+                    android:id="@+id/pillViaje"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_tab_pill_active"
+                    android:alpha="0"/>
+                <ImageView
+                    android:id="@+id/iconViaje"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_trip"
+                    android:contentDescription="Viaje"/>
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/tabNoticias"
+                android:layout_width="56dp"
+                android:layout_height="40dp"
+                android:layout_margin="3dp">
+                <View
+                    android:id="@+id/pillNoticias"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_tab_pill_active"
+                    android:alpha="0"/>
+                <ImageView
+                    android:id="@+id/iconNoticias"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_news"
+                    android:contentDescription="Noticias"/>
+            </FrameLayout>
+
+            <FrameLayout
+                android:id="@+id/tabAvisos"
+                android:layout_width="56dp"
+                android:layout_height="40dp"
+                android:layout_margin="3dp">
+                <View
+                    android:id="@+id/pillAvisos"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_tab_pill_active"
+                    android:alpha="0"/>
+                <ImageView
+                    android:id="@+id/iconAvisos"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_alerts"
+                    android:contentDescription="Avisos"/>
+            </FrameLayout>
+
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- SPLASH: overlay encima de todo mientras carga GTFS + mapa -->
+    <FrameLayout
+        android:id="@+id/splashOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#121212"
+        android:clickable="true"
+        android:focusable="true"
+        android:elevation="100dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <!-- Placeholder del logo. Cambia @mipmap/ic_launcher por tu logo real cuando lo tengas -->
+            <ImageView
+                android:id="@+id/splashLogo"
+                android:layout_width="96dp"
+                android:layout_height="96dp"
+                android:src="@mipmap/ic_launcher"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Metro Bilbao"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:layout_marginTop="20dp"/>
+
+            <ProgressBar
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:indeterminateTint="#FF6512"/>
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>
