@@ -28,7 +28,7 @@ MetroBilbao es una aplicación nativa de Android escrita en Java que ofrece toda
 <h2>🖥️ Capturas de la página</h2>
 
 <h3>Página principal (Mapa interactivo)</h3>
-<img src="app/src/main/assets/mapa.jpeg" width="700"/>
+<img src="app/src/main/assets/mapa.jpeg" width="200"/>
 
 <h3>Trenes en movimiento</h3>
 <video width="700" autoplay>
