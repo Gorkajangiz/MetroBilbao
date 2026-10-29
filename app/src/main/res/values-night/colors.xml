@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+
+    <color name="bg_primary">#FF0A0A0C</color>
+    <color name="bg_secondary">#FF1C1C1E</color>
+    <color name="bg_tertiary">#FF2C2C2E</color>
+    <color name="bg_card">#FF1C1C1E</color>
+    <color name="bg_info_card">#FF2C2C2E</color>
+    <color name="bg_navbar">#B31A1A1E</color>
+    <color name="bg_bottom_sheet">#FF1E1E1E</color>
+    <color name="bg_banner">#FFE8401C</color>
+
+
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_primary_exception">#FFFFFFFF</color>
+    <color name="text_secondary">#FFBBBBBB</color>
+    <color name="text_tertiary">#FF8E8E93</color>
+    <color name="text_on_banner">#FFFFFFFF</color>
+
+
+    <color name="separator">#22FFFFFF</color>
+    <color name="timeline_line">#FF48484A</color>
+
+
+    <color name="pill_active">#33FF6512</color>
+    <color name="icon_active">#FFFF6512</color>
+    <color name="icon_inactive">#80FFFFFF</color>
+
+
+    <color name="btn_primary_tint">#FFFF6512</color>
+    <color name="btn_primary_text">#FFFFFFFF</color>
+    <color name="badge_solid">#FFFF6512</color>
+    <color name="badge_text_on_solid">#FFFFFFFF</color>
+</resources>

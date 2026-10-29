@@ -1,6 +1,5 @@
 package com.example.metrobilbao;
 
-import android.app.AlertDialog;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -63,14 +62,13 @@ public class NoticiasFragment extends Fragment {
         adapter = new NoticiasAdapter(noticias, this::mostrarDetalle);
         rv.setAdapter(adapter);
 
-        // FIX #8: no recargar al rotar
         if (savedInstanceState != null) cargado = savedInstanceState.getBoolean("cargado", false);
 
-        if (!cargado) {
+        if (!cargado || noticias.isEmpty()) {
             cargarAsync();
         } else {
             progress.setVisibility(View.GONE);
-            if (noticias.isEmpty()) vacio.setVisibility(View.VISIBLE);
+            vacio.setVisibility(View.GONE);
         }
     }
 
@@ -80,39 +78,44 @@ public class NoticiasFragment extends Fragment {
     }
 
     @Override public void onDestroyView() {
-        executor.shutdownNow();
         super.onDestroyView();
     }
 
+    @Override public void onDestroy() {
+        executor.shutdownNow();
+        super.onDestroy();
+    }
+
     private void mostrarDetalle(NewsItem item) {
-        com.google.android.material.bottomsheet.BottomSheetDialog dialog =
-                new com.google.android.material.bottomsheet.BottomSheetDialog(requireContext());
+        if (!isAdded() || getContext() == null) return;
+
+        android.app.Dialog dialog = new android.app.Dialog(
+                requireContext(), R.style.Theme_MetroBilbao_Dialog);
+
         View vista = getLayoutInflater().inflate(R.layout.display_noticia, null);
 
-        TextView titulo  = vista.findViewById(R.id.detailTituloNoticia);
-        TextView fecha   = vista.findViewById(R.id.detailFechaNoticia);
-        TextView desc    = vista.findViewById(R.id.detailDescNoticia);
-        ImageView img    = vista.findViewById(R.id.detailImgNoticia);
-        View imgCard     = vista.findViewById(R.id.detailImgCard);
-        Button btnLink   = vista.findViewById(R.id.detailBtnLink);
+        TextView titulo   = vista.findViewById(R.id.detailTituloNoticia);
+        TextView fecha    = vista.findViewById(R.id.detailFechaNoticia);
+        TextView desc     = vista.findViewById(R.id.detailDescNoticia);
+        ImageView img     = vista.findViewById(R.id.detailImgNoticia);
+        Button btnLink    = vista.findViewById(R.id.detailBtnLink);
+        Button btnCerrar  = vista.findViewById(R.id.detailBtnCerrar);
 
         titulo.setText(item.titulo);
         fecha.setText(item.fecha == null ? "" : item.fecha);
         desc.setText(item.descripcion == null ? "" : item.descripcion);
 
-        // Imagen opcional
         if (item.imagenUrl != null && !item.imagenUrl.isEmpty()) {
-            imgCard.setVisibility(View.VISIBLE);
+            img.setVisibility(View.VISIBLE);
             Glide.with(requireContext())
                     .load(item.imagenUrl)
                     .placeholder(android.R.color.darker_gray)
                     .error(android.R.color.darker_gray)
                     .into(img);
         } else {
-            imgCard.setVisibility(View.GONE);
+            img.setVisibility(View.GONE);
         }
 
-        // Link opcional a la noticia completa en el navegador
         if (item.link != null && !item.link.isEmpty()) {
             btnLink.setVisibility(View.VISIBLE);
             btnLink.setOnClickListener(v -> {
@@ -129,30 +132,26 @@ public class NoticiasFragment extends Fragment {
             btnLink.setVisibility(View.GONE);
         }
 
+        btnCerrar.setOnClickListener(v -> dialog.dismiss());
+
         dialog.setContentView(vista);
-        if (dialog.getWindow() != null)
+        dialog.setCancelable(true);
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.show();
+
+        if (dialog.getWindow() != null) {
             dialog.getWindow().setBackgroundDrawable(
                     new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
 
-        int h = getResources().getDisplayMetrics().heightPixels;
-        dialog.show();
-
-        com.google.android.material.bottomsheet.BottomSheetBehavior<android.widget.FrameLayout> b =
-                dialog.getBehavior();
-        b.setFitToContents(false);
-        b.setHalfExpandedRatio(0.85f);
-        b.setExpandedOffset((int) (h * 0.10f));
-        b.setPeekHeight((int) (h * 0.85f));
-        b.setState(com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_HALF_EXPANDED);
-
-        View bottomSheet = dialog.findViewById(
-                com.google.android.material.R.id.design_bottom_sheet);
-        if (bottomSheet != null) bottomSheet.setBackgroundColor(android.graphics.Color.TRANSPARENT);
+            int width = (int) (getResources().getDisplayMetrics().widthPixels * 0.90);
+            dialog.getWindow().setLayout(
+                    width, android.view.WindowManager.LayoutParams.WRAP_CONTENT);
+        }
     }
 
-    // FIX #8: AsyncTask → ExecutorService
     private void cargarAsync() {
         progress.setVisibility(View.VISIBLE);
+        vacio.setVisibility(View.GONE);
         executor.execute(() -> {
             List<NewsItem> lista = new ArrayList<>();
             String error = null;
@@ -160,10 +159,12 @@ public class NoticiasFragment extends Fragment {
             try {
                 conn = (HttpURLConnection) new URL(RSS_URL).openConnection();
                 conn.setConnectTimeout(15000);
-                conn.setReadTimeout(15000);
+                conn.setReadTimeout(20000);
                 conn.setRequestProperty("User-Agent", "MetroBilbaoApp/1.0");
-                if (conn.getResponseCode() != 200) {
-                    error = "HTTP " + conn.getResponseCode();
+                conn.setRequestProperty("Accept-Encoding", "identity");
+                int code = conn.getResponseCode();
+                if (code != 200) {
+                    error = "HTTP " + code;
                 } else {
                     try (InputStream in = conn.getInputStream()) {
                         lista = parsearRss(in);
@@ -175,6 +176,9 @@ public class NoticiasFragment extends Fragment {
             } finally {
                 if (conn != null) conn.disconnect();
             }
+
+            android.util.Log.d(TAG, "Parseados: " + lista.size());
+
             final String errF = error;
             final List<NewsItem> listaF = lista;
             mainHandler.post(() -> {
@@ -184,6 +188,7 @@ public class NoticiasFragment extends Fragment {
                 noticias.clear();
                 noticias.addAll(listaF);
                 adapter.notifyDataSetChanged();
+                android.util.Log.d(TAG, "Adapter count: " + adapter.getItemCount());
                 if (listaF.isEmpty()) {
                     vacio.setVisibility(View.VISIBLE);
                     if (errF != null) Toast.makeText(requireContext(),
@@ -196,7 +201,6 @@ public class NoticiasFragment extends Fragment {
         });
     }
 
-    // FIX #4: parser RSS robusto (CDATA, HTML anidado, type de enclosure)
     private List<NewsItem> parsearRss(InputStream in) throws Exception {
         List<NewsItem> lista = new ArrayList<>();
         XmlPullParser p = XmlPullParserFactory.newInstance().newPullParser();
@@ -210,32 +214,49 @@ public class NoticiasFragment extends Fragment {
                     cur = new NewsItem();
                 } else if (cur != null) {
                     if (tag.equals("title")) {
-                        cur.titulo = leerTextoCompleto(p).trim();
+                        String t = leerTextoCompleto(p).trim();
+                        if (cur.titulo == null || cur.titulo.isEmpty()) cur.titulo = t;
                     } else if (tag.equals("description") || tag.equals("summary")) {
                         String raw = leerTextoCompleto(p);
-                        cur.descripcion = Html.fromHtml(raw,
-                                Html.FROM_HTML_MODE_LEGACY).toString().trim();
-                    } else if (tag.equals("pubDate") || tag.equals("updated")) {
-                        cur.fecha = formatearFecha(leerTextoCompleto(p).trim());   // <-- formateado aquí
+                        if (cur.descripcion == null || cur.descripcion.isEmpty()) {
+                            cur.descripcion = Html.fromHtml(raw,
+                                    Html.FROM_HTML_MODE_LEGACY).toString().trim();
+                        }
+                    } else if (tag.equals("pubDate") || tag.equals("updated") || tag.equals("date")) {
+                        String f = leerTextoCompleto(p).trim();
+                        if (cur.fecha == null || cur.fecha.isEmpty()) {
+                            cur.fecha = formatearFecha(f);
+                        }
                     } else if (tag.equals("link")) {
+                        String href = p.getAttributeValue(null, "href");
                         String link = leerTextoCompleto(p).trim();
-                        if (cur.link == null || cur.link.isEmpty()) cur.link = link;
+                        if (href != null && !href.isEmpty()) link = href;
+                        if ((cur.link == null || cur.link.isEmpty()) && !link.isEmpty()) {
+                            cur.link = link;
+                        }
                     } else if (tag.equals("image")) {
                         String urlAttr = p.getAttributeValue(null, "url");
-                        if (urlAttr != null && !urlAttr.isEmpty()) {
-                            cur.imagenUrl = urlAttr;
-                        } else {
-                            String img = leerTextoCompleto(p).trim();
-                            if (img.startsWith("http")) cur.imagenUrl = img;
+                        String inner = leerTextoCompleto(p).trim();
+                        if (cur.imagenUrl == null || cur.imagenUrl.isEmpty()) {
+                            if (urlAttr != null && !urlAttr.isEmpty()) {
+                                cur.imagenUrl = urlAttr;
+                            } else if (inner.startsWith("http")) {
+                                cur.imagenUrl = inner;
+                            }
                         }
-                    } else if (tag.equals("enclosure")) {
-                        // FIX #4: solo aceptar imágenes
+                    } else if (tag.equals("thumbnail")
+                            || tag.equals("content")
+                            || tag.equals("enclosure")) {
                         String u = p.getAttributeValue(null, "url");
                         String type = p.getAttributeValue(null, "type");
-                        if (u != null && !u.isEmpty()
-                                && (type == null || type.startsWith("image/"))) {
+                        String medium = p.getAttributeValue(null, "medium");
+                        boolean esImagen = (type == null || type.startsWith("image/"))
+                                || "image".equals(medium);
+                        if (u != null && !u.isEmpty() && esImagen
+                                && (cur.imagenUrl == null || cur.imagenUrl.isEmpty())) {
                             cur.imagenUrl = u;
                         }
+                        leerTextoCompleto(p);
                     }
                 }
             } else if (ev == XmlPullParser.END_TAG) {
@@ -250,37 +271,28 @@ public class NoticiasFragment extends Fragment {
         return lista;
     }
 
-    /** Lee todo el texto interior de un tag (incluye CDATA y HTML anidado) hasta su END_TAG. */
     private static String leerTextoCompleto(XmlPullParser p) throws Exception {
         StringBuilder sb = new StringBuilder();
-        int startDepth = p.getDepth();
-        while (true) {
-            int ev = p.next();
-            if (ev == XmlPullParser.END_DOCUMENT) break;
-
-            // FIX: break al cerrar EXACTAMENTE el tag del que partimos,
-            // no cuando bajamos de profundidad (que era el bug).
-            if (ev == XmlPullParser.END_TAG && p.getDepth() == startDepth) break;
-
-            if (ev == XmlPullParser.TEXT || ev == XmlPullParser.CDSECT) {
+        int eventType = p.next();
+        while (eventType != XmlPullParser.END_TAG && eventType != XmlPullParser.END_DOCUMENT) {
+            if (eventType == XmlPullParser.TEXT || eventType == XmlPullParser.CDSECT) {
                 sb.append(p.getText());
-            } else if (ev == XmlPullParser.START_TAG) {
-                sb.append('<').append(p.getName()).append('>');
-            } else if (ev == XmlPullParser.END_TAG) {
-                // Tags anidados sin CDATA (raro en RSS, pero por si acaso)
-                sb.append("</").append(p.getName()).append('>');
+            } else if (eventType == XmlPullParser.START_TAG) {
+                sb.append(leerTextoCompleto(p));
             }
+            eventType = p.next();
         }
         return sb.toString();
     }
+
     private static String formatearFecha(String raw) {
         if (raw == null || raw.trim().isEmpty()) return "";
         String s = raw.trim();
         String[] patterns = {
-                "EEE, dd MMM yyyy HH:mm:ss Z",     // RFC 822 (típico RSS)
+                "EEE, dd MMM yyyy HH:mm:ss Z",
                 "EEE, dd MMM yyyy HH:mm:ss z",
-                "yyyy-MM-dd'T'HH:mm:ssXXX",        // ISO 8601 con offset
-                "yyyy-MM-dd'T'HH:mm:ss'Z'",        // ISO 8601 UTC
+                "yyyy-MM-dd'T'HH:mm:ssXXX",
+                "yyyy-MM-dd'T'HH:mm:ss'Z'",
                 "yyyy-MM-dd HH:mm:ss",
                 "yyyy-MM-dd"
         };
@@ -297,5 +309,4 @@ public class NoticiasFragment extends Fragment {
         }
         return s;
     }
-
 }

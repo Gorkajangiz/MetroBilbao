@@ -13,15 +13,17 @@ public class MetroGestor {
         public final double latitude;
         public final double longitude;
         public final int accessCount;
+        public final String zoneId;
 
         public Station(String name, String code, String parentId,
-                       double latitude, double longitude, int accessCount) {
+                       double latitude, double longitude, int accessCount, String zoneId) {
             this.name = name;
             this.code = code;
             this.parentId = parentId;
             this.latitude = latitude;
             this.longitude = longitude;
             this.accessCount = accessCount;
+            this.zoneId = zoneId;
         }
     }
 
@@ -37,6 +39,7 @@ public class MetroGestor {
             int idxLat = MetroRepository.colIdx(cols, "stop_lat");
             int idxLon = MetroRepository.colIdx(cols, "stop_lon");
             int idxLoc = MetroRepository.colIdx(cols, "location_type");
+            int idxZone = MetroRepository.colIdx(cols, "zone_id");
             if (idxId < 0) { idxId = 0; idxCode = 1; idxName = 2; idxLat = 3; idxLon = 4; idxLoc = 6; }
 
             String l;
@@ -46,14 +49,15 @@ public class MetroGestor {
                     continue;
                 try {
                     int locType = idxLoc >= 0 ? Integer.parseInt(c[idxLoc].trim()) : 0;
-                    if (locType != 1) continue;  // solo estaciones
+                    if (locType != 1) continue;
 
                     String stopId = c[idxId].trim();
                     String code = idxCode >= 0 ? c[idxCode].trim() : "";
                     String name = c[idxName].trim();
                     double lat = Double.parseDouble(c[idxLat].trim());
                     double lon = Double.parseDouble(c[idxLon].trim());
-                    out.add(new Station(name, code, stopId, lat, lon, 1));
+                    String zoneId = idxZone >= 0 ? c[idxZone].trim() : "";
+                    out.add(new Station(name, code, stopId, lat, lon, 1, zoneId));
                 } catch (NumberFormatException ignored) {}
             }
         }

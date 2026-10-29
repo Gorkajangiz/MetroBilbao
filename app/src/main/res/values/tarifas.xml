@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string-array name="tarifas_ocasional_f20">
+        <item>1,60</item><item>1,75</item><item>1,80</item>
+    </string-array>
+    <string-array name="tarifas_ocasional_f50">
+        <item>1,00</item><item>1,10</item><item>1,15</item>
+    </string-array>
+
+
+    <string-array name="tarifas_barik">
+        <item>0,61</item><item>0,71</item><item>0,78</item>
+    </string-array>
+    <string-array name="tarifas_barik_f20">
+        <item>0,49</item><item>0,57</item><item>0,62</item>
+    </string-array>
+    <string-array name="tarifas_barik_f50">
+        <item>0,31</item><item>0,36</item><item>0,39</item>
+    </string-array>
+
+
+    <string name="tarifa_gizatrans">0,25</string>
+    <string name="tarifa_gizatrans_f20">0,20</string>
+    <string name="tarifa_gizatrans_f50">0,13</string>
+
+
+    <string-array name="bidai50_ordinario"><item>21,00</item><item>24,70</item><item>27,80</item><item>36,45</item><item>50,35</item></string-array>
+    <string-array name="bidai50_f20"><item>16,80</item><item>19,75</item><item>22,25</item><item>29,15</item><item>40,30</item></string-array>
+    <string-array name="bidai50_f50"><item>10,50</item><item>12,35</item><item>13,90</item><item>18,25</item><item>25,20</item></string-array>
+
+
+    <string-array name="bidai70_ordinario"><item>25,35</item><item>29,05</item><item>32,75</item><item>40,15</item><item>54,40</item></string-array>
+    <string-array name="bidai70_f20"><item>20,30</item><item>23,20</item><item>26,20</item><item>32,15</item><item>43,50</item></string-array>
+    <string-array name="bidai70_f50"><item>12,70</item><item>14,50</item><item>16,40</item><item>20,10</item><item>27,20</item></string-array>
+
+
+    <string-array name="bidaiOro_ordinario"><item>30,25</item><item>33,70</item><item>36,45</item><item>45,35</item><item>59,35</item></string-array>
+    <string-array name="bidaiOro_f20"><item>24,20</item><item>26,95</item><item>29,15</item><item>36,30</item><item>47,45</item></string-array>
+    <string-array name="bidaiOro_f50"><item>15,15</item><item>16,85</item><item>18,25</item><item>22,70</item><item>29,65</item></string-array>
+
+
+    <string-array name="gazte70_ordinario"><item>17,65</item><item>20,35</item><item>23,20</item><item>27,80</item><item>31,95</item></string-array>
+    <string-array name="gazte70_f20"><item>14,10</item><item>16,30</item><item>18,55</item><item>22,25</item><item>25,55</item></string-array>
+    <string-array name="gazte70_f50"><item>8,85</item><item>10,20</item><item>11,60</item><item>13,90</item><item>16,00</item></string-array>
+
+
+    <string-array name="gazteOro_ordinario"><item>21,40</item><item>23,45</item><item>25,50</item><item>32,45</item><item>43,10</item></string-array>
+    <string-array name="gazteOro_f20"><item>17,10</item><item>18,75</item><item>20,40</item><item>25,95</item><item>34,50</item></string-array>
+    <string-array name="gazteOro_f50"><item>10,70</item><item>11,75</item><item>12,75</item><item>16,25</item><item>21,55</item></string-array>
+</resources>

@@ -1,49 +1,445 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:paddingBottom="110dp">
+    android:fillViewport="true"
+    android:overScrollMode="never">
 
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:text="Origen" android:textStyle="bold"/>
-    <Spinner android:id="@+id/spinnerOrigen" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginBottom="12dp"/>
-
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:text="Destino" android:textStyle="bold"/>
-    <Spinner android:id="@+id/spinnerDestino" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:layout_marginBottom="16dp"/>
-
-    <Button
-        android:id="@+id/btnConsultarViaje"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Consultar ruta"
-        android:enabled="false"/>
+        android:orientation="vertical"
+        android:paddingStart="2dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="110dp">
 
-    <!-- FIX #9: feedback mientras carga GTFS -->
-    <ProgressBar
-        android:id="@+id/progressViaje"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="8dp"/>
 
-    <TextView android:id="@+id/txtRutaResultado" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:textSize="16sp"
-        android:textStyle="bold" android:layout_marginTop="16dp"/>
-    <TextView android:id="@+id/txtTiempo" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:textSize="14sp"
-        android:layout_marginTop="4dp"/>
-    <TextView android:id="@+id/txtPrecio" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:textSize="14sp"
-        android:layout_marginTop="4dp"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Planifica tu viaje"
+            android:textColor="@color/text_primary"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:paddingLeft="12dp"/>
 
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-        android:text="Próximos trenes (60 min)" android:textStyle="bold"
-        android:layout_marginTop="16dp"/>
-    <ListView android:id="@+id/listProximosTrenes" android:layout_width="match_parent"
-        android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="8dp"/>
-</LinearLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="20dp"
+            android:text="Ruta, precio y próximos trenes"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:paddingLeft="12dp"/>
+
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="24dp"
+                    android:layout_height="match_parent"
+                    android:gravity="center_horizontal"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="37dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/dot_origen"/>
+
+                    <View
+                        android:layout_width="2dp"
+                        android:layout_height="0dp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="4dp"
+                        android:layout_weight="1"
+                        android:background="@color/timeline_line"/>
+
+                    <ImageView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="17dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/dot_destino"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="16dp"
+                        android:layout_marginBottom="4dp"
+                        android:gravity="bottom"
+                        android:letterSpacing="0.08"
+                        android:text="ORIGEN"
+                        android:textColor="@color/text_tertiary"
+                        android:textSize="11sp"
+                        android:textStyle="bold"/>
+
+                    <FrameLayout
+                        android:id="@+id/containerOrigen"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_spinner">
+
+                        <androidx.appcompat.widget.AppCompatAutoCompleteTextView
+                            android:id="@+id/spinnerOrigen"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@null"
+                            android:paddingStart="2dp"
+                            android:paddingEnd="12dp"
+                            android:hint="Estación de origen"
+                            android:textColorHint="@color/text_tertiary"
+                            android:textColor="@color/text_primary"
+                            android:textSize="16sp"
+                            android:completionThreshold="1"
+                            android:inputType="textCapWords"
+                            android:imeOptions="actionNext"
+                            android:dropDownVerticalOffset="4dp"
+                            android:popupBackground="@drawable/bg_popup"/>
+                    </FrameLayout>
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="16dp"
+                        android:layout_marginTop="12dp"
+                        android:layout_marginBottom="4dp"
+                        android:gravity="bottom"
+                        android:letterSpacing="0.08"
+                        android:text="DESTINO"
+                        android:textColor="@color/text_tertiary"
+                        android:textSize="11sp"
+                        android:textStyle="bold"/>
+
+                    <FrameLayout
+                        android:id="@+id/containerDestino"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_spinner">
+
+                        <androidx.appcompat.widget.AppCompatAutoCompleteTextView
+                            android:id="@+id/spinnerDestino"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:background="@null"
+                            android:paddingStart="2dp"
+                            android:paddingEnd="12dp"
+                            android:hint="Estación de destino"
+                            android:textColorHint="@color/text_tertiary"
+                            android:textColor="@color/text_primary"
+                            android:textSize="16sp"
+                            android:completionThreshold="1"
+                            android:inputType="textCapWords"
+                            android:imeOptions="actionDone"
+                            android:dropDownVerticalOffset="4dp"
+                            android:popupBackground="@drawable/bg_popup"/>
+                    </FrameLayout>
+                </LinearLayout>
+
+                <ImageButton
+                    android:id="@+id/btnIntercambiar"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_gravity="center_vertical"
+                    android:layout_marginStart="12dp"
+                    android:background="@drawable/bg_circle_button"
+                    android:contentDescription="Intercambiar origen y destino"
+                    android:src="@drawable/ic_swap"/>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnConsultarViaje"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="16dp"
+                android:enabled="false"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:letterSpacing="0"
+                android:text="Buscar ruta"
+                android:textAllCaps="false"
+                android:textColor="@color/btn_primary_text"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                app:backgroundTint="@color/btn_primary_tint"
+                app:cornerRadius="14dp"/>
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/progressViaje"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="16dp"
+            android:indeterminateTint="@color/metro_orange"/>
+
+
+        <LinearLayout
+            android:id="@+id/cardResultado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/txtRutaResultado"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold"/>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tiempo estimado: "
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"/>
+
+                <TextView
+                    android:id="@+id/txtTiempo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/metro_orange"
+                    android:textSize="14sp"
+                    android:textStyle="bold"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/detalleRuta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="8dp"
+                    android:letterSpacing="0.08"
+                    android:text="RECORRIDO"
+                    android:textColor="@color/text_tertiary"
+                    android:textSize="11sp"
+                    android:textStyle="bold"/>
+
+                <LinearLayout
+                    android:id="@+id/containerRuta"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"/>
+            </LinearLayout>
+        </LinearLayout>
+
+
+        <LinearLayout
+            android:id="@+id/cardTarifas"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
+
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Tarifas"
+                    android:textColor="@color/text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnVerTarifas"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="0dp"
+                    android:minHeight="36dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:text="Tipos"
+                    android:textAllCaps="false"
+                    android:textColor="@color/metro_orange"
+                    android:textSize="13sp"
+                    app:cornerRadius="20dp"
+                    app:strokeColor="@color/metro_orange"
+                    app:strokeWidth="1dp"/>
+            </LinearLayout>
+
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/togglePerfil"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:singleSelection="true"
+                app:selectionRequired="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPerfilOrdinario"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Ordinario"
+                    android:textSize="12sp"
+                    android:checked="true"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPerfilF20"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="F20"
+                    android:textSize="12sp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnPerfilF50"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="F50"
+                    android:textSize="12sp"/>
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_stat"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:id="@+id/txtPrecioIndividual"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Barik"
+                        android:textColor="@color/text_tertiary"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_stat"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:id="@+id/txtPrecio"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Ocasional"
+                        android:textColor="@color/text_tertiary"
+                        android:textSize="12sp"/>
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+
+        <LinearLayout
+            android:id="@+id/cardProximos"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Próximos trenes"
+                android:textColor="@color/text_primary"
+                android:textSize="18sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/txtProximosEstacion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="13sp"/>
+
+            <LinearLayout
+                android:id="@+id/containerProximos"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:divider="@drawable/divider_line"
+                android:orientation="vertical"
+                android:showDividers="middle"/>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

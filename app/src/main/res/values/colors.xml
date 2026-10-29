@@ -1,10 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
+
+    <color name="metro_red">#FFE8401C</color>
+    <color name="metro_red_dark">#FFB83215</color>
+    <color name="metro_red_light">#FFFF6B3D</color>
+    <color name="metro_orange">#FFFF6512</color>
+    <color name="line_l1">#FFFF6505</color>
+    <color name="line_l2">#FF00AA64</color>
+
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+
+
+    <color name="bg_primary">#FFF2F2F7</color>
+    <color name="bg_secondary">#FFFFFFFF</color>
+    <color name="bg_tertiary">#FFF8F8FA</color>
+    <color name="bg_card">#FFFFFFFF</color>
+    <color name="bg_info_card">#FFF2F2F7</color>
+    <color name="bg_navbar">#B3F8F8FA</color>
+    <color name="bg_bottom_sheet">#FFFFFFFF</color>
+    <color name="bg_banner">#FFE8401C</color>
+
+
+    <color name="text_primary">#000000</color>
+    <color name="text_primary_exception">#FFFFFF</color>
+    <color name="text_secondary">#FF636366</color>
+    <color name="text_tertiary">#FF8E8E93</color>
+    <color name="text_on_banner">#FFFFFFFF</color>
+
+
+    <color name="separator">#1A000000</color>
+    <color name="timeline_line">#FFC7C7CC</color>
+
+
+    <color name="pill_active">#26E8401C</color>
+    <color name="icon_active">#FFFF6512</color>
+    <color name="icon_inactive">#FF1C1C1E</color>
+s
+
+    <color name="badge_solid">#FFFF6512</color>
+    <color name="badge_text_on_solid">#FFFFFFFF</color>
 </resources>

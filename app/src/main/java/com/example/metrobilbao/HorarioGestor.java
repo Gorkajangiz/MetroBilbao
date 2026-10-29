@@ -132,13 +132,9 @@ public class HorarioGestor {
     private final Map<String, List<Trip>> tripsPorServicio = new HashMap<>();
     private final List<CalendarEntry> calendarEntries = new ArrayList<>();
     private final Map<Integer, Map<String, Integer>> calendarDates = new HashMap<>();
-
-    // Cache de offsets por shape_id y stop_id
     private final Map<String, Map<String, Double>> offsetCachePorShape = new HashMap<>();
 
     private volatile String servicioActivo = "";
-
-    // ---- API pública ----
 
     public void cargar(MetroRepository.GtfsSource source, Map<String, ShapePath> shapesPorId) throws Exception {
         long t0 = System.currentTimeMillis();
@@ -156,8 +152,6 @@ public class HorarioGestor {
         android.util.Log.d(LOG_TAG, "HorarioGestor: " + todosLosTrips.size() + " viajes · servicio="
                 + servicioActivo + " · total=" + (System.currentTimeMillis() - t0) + "ms");
     }
-
-    // ---- Paradas ----
 
     private void cargarParadas(MetroRepository.GtfsSource source) throws IOException {
         try (BufferedReader r = source.open("stops.txt", "paradas.txt")) {
@@ -186,8 +180,6 @@ public class HorarioGestor {
             }
         }
     }
-
-    // ---- Viajes ----
 
     private Map<String, String[]> cargarViajes(MetroRepository.GtfsSource source) throws IOException {
         Map<String, String[]> out = new HashMap<>();
@@ -219,8 +211,6 @@ public class HorarioGestor {
         return out;
     }
 
-    // ---- Horarios ----
-
     private Map<String, List<StopTime>> cargarHorarios(MetroRepository.GtfsSource source) throws IOException {
         Map<String, List<StopTime>> out = new HashMap<>();
         try (BufferedReader r = source.open("stop_times.txt", "horarios.txt")) {
@@ -232,7 +222,6 @@ public class HorarioGestor {
             int idxArr = MetroRepository.colIdx(cols, "arrival_time");
             int idxDep = MetroRepository.colIdx(cols, "departure_time");
             int idxStop = MetroRepository.colIdx(cols, "stop_id");
-            // fallback a orden del fichero del usuario si no hay header reconocible
             if (idxTrip < 0) { idxTrip = 0; idxSeq = 1; idxArr = 2; idxDep = 3; idxStop = 4; }
 
             String l;
@@ -257,8 +246,6 @@ public class HorarioGestor {
         }
         return out;
     }
-
-    // ---- calendar.txt ----
 
     private void cargarCalendar(MetroRepository.GtfsSource source) {
         try (BufferedReader r = source.open("calendar.txt")) {
@@ -296,7 +283,6 @@ public class HorarioGestor {
                 calendarEntries.add(new CalendarEntry(c[idxSvc].trim(), d, sd, ed));
             }
         } catch (IOException ignored) {
-            // calendar.txt opcional
         }
     }
 
@@ -325,11 +311,8 @@ public class HorarioGestor {
                 } catch (NumberFormatException ignored) {}
             }
         } catch (IOException ignored) {
-            // calendar_dates.txt opcional
         }
     }
-
-    // ---- Construcción de trips con proyección por shape ----
 
     private void construirTrips(Map<String, String[]> viajesMeta,
                                 Map<String, List<StopTime>> stopTimesPorTrip,
@@ -351,7 +334,6 @@ public class HorarioGestor {
             ShapePath path = shapesPorId.get(shapeId);
             if (path == null) {
                 sinShape++;
-                // Fallback: probar el primer shape de la misma línea geográfica
                 path = pickFallbackPath(shapesPorId, headsign);
             }
             String line = (path != null) ? classifyLine(path, shapeId, headsign) : "L1";
@@ -373,7 +355,6 @@ public class HorarioGestor {
     }
 
     private ShapePath pickFallbackPath(Map<String, ShapePath> shapes, String headsign) {
-        // elige un shape cuyo headsign clasifique igual
         for (Map.Entry<String, ShapePath> e : shapes.entrySet()) {
             if (classifyLine(e.getValue(), e.getKey(), headsign).equals("L1")) return e.getValue();
         }
@@ -416,8 +397,6 @@ public class HorarioGestor {
         }
     }
 
-    // ---- Clasificación de línea ----
-
     static String classifyLine(ShapePath shape, String shapeId, String headsign) {
         if (shape != null && !shape.points.isEmpty()) {
             for (LatLng p : shape.points) if (p.latitude > 43.35) return "L1";
@@ -442,8 +421,6 @@ public class HorarioGestor {
         return "L1";
     }
 
-    // ---- Resolución de servicio activo ----
-
     private String resolverServicio() {
         Calendar cal = Calendar.getInstance(TZ_MADRID);
         int dow = cal.get(Calendar.DAY_OF_WEEK);
@@ -453,8 +430,6 @@ public class HorarioGestor {
                 + cal.get(Calendar.DAY_OF_MONTH);
 
         Map<String, Integer> exceptions = calendarDates.get(dateInt);
-
-        // 1) exception_type=1 (añadidos) → máxima prioridad
         if (exceptions != null) {
             for (Map.Entry<String, Integer> e : exceptions.entrySet()) {
                 if (e.getValue() == 1 && tripsPorServicio.containsKey(e.getKey())) {
@@ -462,16 +437,12 @@ public class HorarioGestor {
                 }
             }
         }
-
-        // 2) calendar.txt, saltando los exception_type=2
         for (CalendarEntry ce : calendarEntries) {
             if (dateInt < ce.startDate || dateInt > ce.endDate) continue;
             if (!ce.days[dayIdx]) continue;
             if (exceptions != null && exceptions.getOrDefault(ce.serviceId, 0) == 2) continue;
             if (tripsPorServicio.containsKey(ce.serviceId)) return ce.serviceId;
         }
-
-        // 3) Fallback: servicio con más trips cuyo startSec esté más cerca de ahora
         double ahoraSec = ahoraSegundosMadridContinuo();
         String mejor = null;
         double menorDist = Double.MAX_VALUE;
@@ -491,8 +462,6 @@ public class HorarioGestor {
             }
         }
         if (mejor != null) return mejor;
-
-        // 4) cualquiera disponible
         if (!tripsPorServicio.isEmpty()) return tripsPorServicio.keySet().iterator().next();
         return "";
     }
@@ -519,8 +488,6 @@ public class HorarioGestor {
         }
     }
 
-    // ---- Tiempo ----
-
     public static double ahoraSegundosMadridContinuo() {
         Calendar cal = Calendar.getInstance(TZ_MADRID);
         int hour = cal.get(Calendar.HOUR_OF_DAY);
@@ -535,8 +502,6 @@ public class HorarioGestor {
     public static int ahoraSegundosMadrid() {
         return (int) Math.floor(ahoraSegundosMadridContinuo());
     }
-
-    // ---- Cálculo de trenes activos ----
 
     public List<TrenEstado> getTrenesActivos(double ahoraSec, Map<String, String> vehiculosPorTrip) {
         List<Trip> tripsDelServicio = tripsPorServicio.get(servicioActivo);

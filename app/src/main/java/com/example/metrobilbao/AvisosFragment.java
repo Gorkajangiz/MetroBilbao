@@ -1,6 +1,5 @@
 package com.example.metrobilbao;
 
-import android.app.AlertDialog;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -55,19 +54,19 @@ public class AvisosFragment extends Fragment {
         super.onViewCreated(v, savedInstanceState);
         RecyclerView rv = v.findViewById(R.id.recyclerAvisos);
         progress = v.findViewById(R.id.progressAvisos);
-        vacio = v.findViewById(R.id.txtVacioAvisos);
+        vacio    = v.findViewById(R.id.txtVacioAvisos);
 
         rv.setLayoutManager(new LinearLayoutManager(requireContext()));
-        adapter = new AvisosAdapter(avisos, this::mostrarDetalle);
+        adapter = new AvisosAdapter(avisos);   // 👈 sin listener
         rv.setAdapter(adapter);
 
         if (savedInstanceState != null) cargado = savedInstanceState.getBoolean("cargado", false);
 
-        if (!cargado) {
+        if (!cargado || avisos.isEmpty()) {
             cargarAsync();
         } else {
             progress.setVisibility(View.GONE);
-            if (avisos.isEmpty()) vacio.setVisibility(View.VISIBLE);
+            vacio.setVisibility(View.GONE);
         }
     }
 
@@ -76,20 +75,14 @@ public class AvisosFragment extends Fragment {
         outState.putBoolean("cargado", cargado);
     }
 
-    @Override public void onDestroyView() {
+    @Override public void onDestroy() {
         executor.shutdownNow();
-        super.onDestroyView();
-    }
-
-    private void mostrarDetalle(AvisoItem item) {
-        new AlertDialog.Builder(requireContext())
-                .setTitle(item.titulo)
-                .setMessage(item.descripcion + "\n\n" + item.fechas)
-                .setPositiveButton("Cerrar", null).show();
+        super.onDestroy();
     }
 
     private void cargarAsync() {
         progress.setVisibility(View.VISIBLE);
+        vacio.setVisibility(View.GONE);
         executor.execute(() -> {
             List<AvisoItem> lista = new ArrayList<>();
             String error = null;
@@ -97,8 +90,9 @@ public class AvisosFragment extends Fragment {
             try {
                 conn = (HttpURLConnection) new URL(AVISOS_URL).openConnection();
                 conn.setConnectTimeout(15000);
-                conn.setReadTimeout(15000);
+                conn.setReadTimeout(20000);
                 conn.setRequestProperty("User-Agent", "MetroBilbaoApp/1.0");
+                conn.setRequestProperty("Accept-Encoding", "identity");
                 if (conn.getResponseCode() != 200) {
                     error = "HTTP " + conn.getResponseCode();
                 } else {
@@ -118,30 +112,20 @@ public class AvisosFragment extends Fragment {
                             if (!o.optBoolean("is_published", true)) continue;
                             String titulo = o.optString("title_es", "").trim();
                             if (titulo.isEmpty()) continue;
-
-                            // FIX #5: descartar avisos caducados
                             String fin = o.optString("publish_end_date", "").trim();
                             long finMs = parseFecha(fin);
                             if (finMs > 0 && finMs < hoy) continue;
 
                             String tipo = o.optString("type", "").trim();
 
-                            // FIX #5: usar descripción real si existe
                             String descripcion = o.optString("description_es", "").trim();
                             if (descripcion.isEmpty())
                                 descripcion = o.optString("summary_es", "").trim();
-                            if (descripcion.isEmpty())
-                                descripcion = tipo.isEmpty() ? "" : "Tipo: " + tipo;
 
                             String inicio = o.optString("publish_start_date", "").trim();
-                            StringBuilder fechas = new StringBuilder();
-                            if (!inicio.isEmpty()) fechas.append("Desde: ").append(inicio);
-                            if (!fin.isEmpty()) {
-                                if (fechas.length() > 0) fechas.append("   ");
-                                fechas.append("Hasta: ").append(fin);
-                            }
+                            String fechas = formatearRango(inicio, fin);
 
-                            lista.add(new AvisoItem(titulo, descripcion, fechas.toString()));
+                            lista.add(new AvisoItem(titulo, descripcion, fechas, tipo));
                         }
                     }
                 }
@@ -151,6 +135,9 @@ public class AvisosFragment extends Fragment {
             } finally {
                 if (conn != null) conn.disconnect();
             }
+
+            android.util.Log.d(TAG, "Avisos parseados: " + lista.size());
+
             final String errF = error;
             final List<AvisoItem> listaF = lista;
             mainHandler.post(() -> {
@@ -172,7 +159,32 @@ public class AvisosFragment extends Fragment {
         });
     }
 
-    // FIX #5: parser de fechas tolerante (yyyy-MM-dd, ISO 8601 y con hora)
+    private static String formatearRango(String inicio, String fin) {
+        String ini = formatearFechaCorta(inicio);
+        String f   = formatearFechaCorta(fin);
+        if (!ini.isEmpty() && !f.isEmpty()) return ini + " – " + f;
+        if (!ini.isEmpty()) return "Desde " + ini;
+        if (!f.isEmpty())   return "Hasta " + f;
+        return "";
+    }
+
+    private static String formatearFechaCorta(String s) {
+        if (s == null || s.trim().isEmpty()) return "";
+        s = s.replace('T', ' ').trim();
+        String[] patterns = {"yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd"};
+        for (String pat : patterns) {
+            try {
+                java.util.Date d = new java.text.SimpleDateFormat(pat,
+                        java.util.Locale.US).parse(s);
+                if (d != null) {
+                    return new java.text.SimpleDateFormat("d MMM",
+                            new java.util.Locale("es", "ES")).format(d);
+                }
+            } catch (Exception ignored) {}
+        }
+        return s;
+    }
+
     private static long parseFecha(String s) {
         if (s == null || s.isEmpty()) return 0L;
         s = s.replace('T', ' ').trim();

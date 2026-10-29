@@ -10,6 +10,8 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.bitmap.CenterCrop;
+import com.bumptech.glide.load.resource.bitmap.RoundedCorners;
 
 import java.util.List;
 
@@ -39,13 +41,16 @@ public class NoticiasAdapter extends RecyclerView.Adapter<NoticiasAdapter.ViewHo
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         NewsItem item = items.get(position);
         holder.titulo.setText(item.titulo);
-        holder.fecha.setText(item.fecha);
-        holder.descripcion.setText(item.descripcion);
+        holder.fecha.setText(item.fecha == null ? "" : item.fecha);
+        holder.descripcion.setText(item.descripcion == null ? "" : item.descripcion);
 
         if (item.imagenUrl != null && !item.imagenUrl.isEmpty()) {
             holder.imagen.setVisibility(View.VISIBLE);
+            int radius = (int) (12 * holder.itemView.getResources()
+                    .getDisplayMetrics().density);
             Glide.with(holder.itemView.getContext())
                     .load(item.imagenUrl)
+                    .transform(new CenterCrop(), new RoundedCorners(radius))
                     .placeholder(android.R.color.darker_gray)
                     .error(android.R.color.darker_gray)
                     .into(holder.imagen);

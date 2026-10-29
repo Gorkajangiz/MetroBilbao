@@ -4,16 +4,12 @@ import com.google.android.gms.maps.model.LatLng;
 
 import java.util.List;
 
-/**
- * Recorrido (shape) del GTFS como polilínea con distancias acumuladas.
- * Permite proyectar una posición sobre el recorrido y obtener coordenadas
- * a partir de un offset de arco (metros desde el inicio).
- */
+
 class ShapePath {
 
     private static final double METERS_PER_DEG_LAT = 111320.0;
 
-    /** Máxima distancia tolerada en la ventana del hint antes del fallback global. */
+    
     private static final double HINT_MAX_ERROR_M = 400.0;
 
     final List<LatLng> points;
@@ -28,13 +24,7 @@ class ShapePath {
         this.totalLength = cumDist[points.size() - 1];
     }
 
-    /**
-     * Proyecta p sobre la polilínea.
-     * Si hintOffset >= 0 y maxSearch > 0, restringe la búsqueda a
-     * [hintOffset - maxSearch, hintOffset + maxSearch] usando búsqueda
-     * binaria para localizar los segmentos. Si no hay candidato fiable
-     * (< HINT_MAX_ERROR_M), cae a búsqueda global.
-     */
+    
     double projectOffset(LatLng p, double hintOffset, double maxSearch) {
         int n = points.size() - 1;
         if (n < 1) return 0;
@@ -78,10 +68,7 @@ class ShapePath {
         return chosen;
     }
 
-    /**
-     * Devuelve el menor segmento i tal que cumDist[i + 1] >= target.
-     * Si target <= 0 devuelve 0. Si target >= totalLength devuelve n-1.
-     */
+    
     private int lowerBoundCumDist(double target) {
         int n = points.size() - 1;
         int lo = 0, hi = n - 1;
@@ -93,10 +80,7 @@ class ShapePath {
         return lo;
     }
 
-    /**
-     * Devuelve el mayor segmento i tal que cumDist[i] <= target.
-     * Si target >= totalLength devuelve n-1.
-     */
+    
     private int upperBoundCumDist(double target) {
         int n = points.size() - 1;
         int lo = 0, hi = n - 1;
@@ -148,8 +132,6 @@ class ShapePath {
         double brng = Math.toDegrees(Math.atan2(y, x));
         return (float) ((brng + 360) % 360);
     }
-
-    // ---------- geodesia local ----------
 
     private static double[] projectPointOnSegment(LatLng p, LatLng a, LatLng b) {
         double mLng = metersPerDegLng(p.latitude);

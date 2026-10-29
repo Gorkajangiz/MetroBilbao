@@ -16,11 +16,7 @@ import java.net.URL;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-/**
- * Descarga y cachea el zip GTFS oficial en filesDir/gtfs/.
- * Solo descarga cuando ETag/Last-Modified cambia o cuando pasan MAX_AGE_MS.
- * Descarga atómica: escribe en gtfs.tmp, luego renameTo(gtfs).
- */
+
 public class GtfsUpdater {
 
     private static final String TAG = "MetroTren";
@@ -85,8 +81,6 @@ public class GtfsUpdater {
             if (!tmp.mkdirs()) throw new IOException("No se pudo crear " + tmp);
 
             downloadAndExtract(ctx.getString(R.string.gtfs_url), tmp, progress);
-
-            // swap atómico
             deleteRecursive(dir);
             if (!tmp.renameTo(dir)) throw new IOException("renameTo falló");
             if (remoteEtag != null) writeString(etagFile, remoteEtag);
@@ -97,7 +91,6 @@ public class GtfsUpdater {
         } catch (Throwable t) {
             Log.e(TAG, "GtfsUpdater error", t);
             if (validarCache(dir)) {
-                // Tenemos cache válida: usarla aunque la actualización haya fallado
                 post(cb, () -> cb.onReady(dir, false));
             } else {
                 post(cb, () -> cb.onError(t));

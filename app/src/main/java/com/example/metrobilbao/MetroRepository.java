@@ -26,38 +26,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/**
- * Singleton que carga el GTFS una vez.
- * - Primero intenta GtfsUpdater (filesDir/gtfs/).
- * - Si falla, usa assets/ (paradas.txt, viajes.txt, etc.).
- * - Cada trip proyecta sobre SU shape real (no sobre 2 maestros).
- */
+
 public class MetroRepository {
 
     private static final String LOG_TAG = "MetroTren";
-
-    // Para dibujar en el mapa (paralelo-separado)
     private static final String DISPLAY_L1 = "ETX_PLE";
     private static final String DISPLAY_L2 = "BSR_KAB";
-
-    // Geografía para separar visualmente L1/L2 en el tronco común
     private static final double METERS_PER_DEG_LAT = 111320.0;
-    private static final double PARALLEL_OFFSET_M = 7.0;
-    private static final double PARALLEL_THRESHOLD_M = 100.0;
     private static final double REF_LAT = 43.2630, REF_LNG = -2.9350;
     private static final double M_PER_DEG_LAT_APPROX = 111320.0;
     private static final double M_PER_DEG_LNG_APPROX =
             M_PER_DEG_LAT_APPROX * Math.cos(Math.toRadians(REF_LAT));
-    private static final double GRID_CELL_M = 100.0;
 
     public interface Callback {
         void onReady(@NonNull MetroRepository repository);
         void onError(@NonNull Throwable error);
     }
 
-    public interface ProgressListener extends GtfsUpdater.Progress {
-        // vacío — hereda onProgress con la misma firma
-    }
+    public interface ProgressListener extends GtfsUpdater.Progress {}
 
     private static MetroRepository instance;
 
@@ -74,6 +60,9 @@ public class MetroRepository {
     private Map<String, ShapePath> shapesPorId = Collections.emptyMap();
     private HorarioGestor horarioGestor;
     private final List<MetroGestor.Station> estaciones = new ArrayList<>();
+    private final Map<String, String> zonasPorEstacion = new HashMap<>();
+    private final Map<String, Double> tarifasIndividuales = new HashMap<>(); // fare_id -> precio GTFS
+    private final Map<String, String> reglasTarifarias = new HashMap<>();    // "zonaO|zonaD" -> fare_id
 
     private MetroRepository() {}
 
@@ -117,7 +106,6 @@ public class MetroRepository {
                     }
                 }
             }
-
             @Override public void onError(Throwable t) {
                 Log.w(LOG_TAG, "Descarga GTFS falló, usando assets", t);
                 try {
@@ -134,16 +122,16 @@ public class MetroRepository {
         long t0 = System.currentTimeMillis();
 
         Map<String, ShapePath> shapes = cargarShapes(source);
-        Log.d(LOG_TAG, "MetroRepository: " + shapes.size() + " shapes cargados en "
-                + (System.currentTimeMillis() - t0) + "ms");
-
         HorarioGestor hg = new HorarioGestor();
         hg.cargar(source, shapes);
-        Log.d(LOG_TAG, "MetroRepository: HorarioGestor listo en "
-                + (System.currentTimeMillis() - t0) + "ms");
-
         List<MetroGestor.Station> ests = new MetroGestor().getStations(source);
-        Log.d(LOG_TAG, "MetroRepository: " + ests.size() + " estaciones");
+
+        Map<String, String> zonas = new HashMap<>();
+        for (MetroGestor.Station s : ests) zonas.put(s.parentId, s.zoneId);
+
+        Map<String, Double> tarifas = new HashMap<>();
+        Map<String, String> reglas = new HashMap<>();
+        cargarTarifas(source, tarifas, reglas);
 
         ShapePath d1 = buildDisplayPath(shapes, DISPLAY_L1);
         ShapePath d2 = buildDisplayPath(shapes, DISPLAY_L2);
@@ -155,10 +143,134 @@ public class MetroRepository {
             this.horarioGestor = hg;
             this.estaciones.clear();
             this.estaciones.addAll(ests);
+            this.zonasPorEstacion.clear();
+            this.zonasPorEstacion.putAll(zonas);
+            this.tarifasIndividuales.clear();
+            this.tarifasIndividuales.putAll(tarifas);
+            this.reglasTarifarias.clear();
+            this.reglasTarifarias.putAll(reglas);
             listo = true;
             cargando = false;
         }
         notifySuccess();
+        Log.d(LOG_TAG, "GTFS listo en " + (System.currentTimeMillis() - t0) + "ms");
+    }
+
+    private void cargarTarifas(GtfsSource src,
+                               Map<String, Double> tarifasOut,
+                               Map<String, String> reglasOut) {
+        try (BufferedReader r = src.open("fare_attributes.txt")) {
+            String header = r.readLine();
+            if (header != null) {
+                String[] cols = header.split(",", -1);
+                int idxId = colIdx(cols, "fare_id");
+                int idxPrice = colIdx(cols, "price");
+                if (idxId >= 0 && idxPrice >= 0) {
+                    String l;
+                    while ((l = r.readLine()) != null) {
+                        String[] c = l.split(",", -1);
+                        if (c.length <= Math.max(idxId, idxPrice)) continue;
+                        try {
+                            tarifasOut.put(c[idxId].trim(),
+                                    Double.parseDouble(c[idxPrice].trim()));
+                        } catch (NumberFormatException ignored) {}
+                    }
+                }
+            }
+        } catch (IOException e) {
+            Log.w(LOG_TAG, "No se pudo leer fare_attributes.txt", e);
+        }
+
+        try (BufferedReader r = src.open("fare_rules.txt")) {
+            String header = r.readLine();
+            if (header != null) {
+                String[] cols = header.split(",", -1);
+                int idxFare = colIdx(cols, "fare_id");
+                int idxOrigin = colIdx(cols, "origin_id");
+                int idxDest = colIdx(cols, "destination_id");
+                if (idxFare >= 0 && idxOrigin >= 0 && idxDest >= 0) {
+                    String l;
+                    while ((l = r.readLine()) != null) {
+                        String[] c = l.split(",", -1);
+                        if (c.length <= Math.max(idxFare, Math.max(idxOrigin, idxDest))) continue;
+                        reglasOut.put(c[idxOrigin].trim() + "|" + c[idxDest].trim(),
+                                c[idxFare].trim());
+                    }
+                }
+            }
+        } catch (IOException e) {
+            Log.w(LOG_TAG, "No se pudo leer fare_rules.txt", e);
+        }
+    }
+
+    
+    public int getZonasCruzadas(String parentIdOrigen, String parentIdDestino) {
+        synchronized (lock) {
+            String fareId = resolverFareId(parentIdOrigen, parentIdDestino);
+            if (fareId == null) return -1;
+            if (fareId.endsWith("_1")) return 1;
+            if (fareId.endsWith("_2")) return 2;
+            if (fareId.endsWith("_3")) return 3;
+            return -1;
+        }
+    }
+
+    
+    public double getPrecioOcasional(String parentIdOrigen, String parentIdDestino) {
+        synchronized (lock) {
+            String fareId = resolverFareId(parentIdOrigen, parentIdDestino);
+            if (fareId == null) return -1;
+            Double p = tarifasIndividuales.get(fareId);
+            return p != null ? p : -1;
+        }
+    }
+
+    
+    public double getPrecioOcasionalF20(@NonNull Context ctx, String o, String d) {
+        return lookupArray(ctx, R.array.tarifas_ocasional_f20, getZonasCruzadas(o, d));
+    }
+    public double getPrecioOcasionalF50(@NonNull Context ctx, String o, String d) {
+        return lookupArray(ctx, R.array.tarifas_ocasional_f50, getZonasCruzadas(o, d));
+    }
+
+    
+    public double getPrecioBarik(@NonNull Context ctx, String o, String d) {
+        return lookupArray(ctx, R.array.tarifas_barik, getZonasCruzadas(o, d));
+    }
+    public double getPrecioBarikF20(@NonNull Context ctx, String o, String d) {
+        return lookupArray(ctx, R.array.tarifas_barik_f20, getZonasCruzadas(o, d));
+    }
+    public double getPrecioBarikF50(@NonNull Context ctx, String o, String d) {
+        return lookupArray(ctx, R.array.tarifas_barik_f50, getZonasCruzadas(o, d));
+    }
+
+    
+    public double getPrecioGizatrans(@NonNull Context ctx, int perfil) {
+        String res;
+        switch (perfil) {
+            case 1: res = ctx.getString(R.string.tarifa_gizatrans_f20); break;
+            case 2: res = ctx.getString(R.string.tarifa_gizatrans_f50); break;
+            default: res = ctx.getString(R.string.tarifa_gizatrans);
+        }
+        try { return Double.parseDouble(res.replace(",", ".").trim()); }
+        catch (NumberFormatException e) { return -1; }
+    }
+
+    private double lookupArray(Context ctx, int arrayRes, int zonas) {
+        if (zonas <= 0) return -1;
+        String[] arr = ctx.getResources().getStringArray(arrayRes);
+        if (zonas - 1 >= arr.length) return -1;
+        try { return Double.parseDouble(arr[zonas - 1].replace(",", ".").trim()); }
+        catch (NumberFormatException e) { return -1; }
+    }
+
+    private String resolverFareId(String parentIdOrigen, String parentIdDestino) {
+        String zO = zonasPorEstacion.get(parentIdOrigen);
+        String zD = zonasPorEstacion.get(parentIdDestino);
+        if (zO == null || zD == null) return null;
+        String fareId = reglasTarifarias.get(zO + "|" + zD);
+        if (fareId == null) fareId = reglasTarifarias.get(zD + "|" + zO);
+        return fareId;
     }
 
     private void fail(Throwable t) {
@@ -187,8 +299,6 @@ public class MetroRepository {
         });
     }
 
-    // ---- API pública ----
-
     public ShapePath getPathMasterL1() { synchronized (lock) { return displayL1; } }
     public ShapePath getPathMasterL2() { synchronized (lock) { return displayL2; } }
     public Map<String, ShapePath> getShapesPorId() { synchronized (lock) { return shapesPorId; } }
@@ -196,8 +306,6 @@ public class MetroRepository {
     public List<MetroGestor.Station> getEstaciones() {
         synchronized (lock) { return new ArrayList<>(estaciones); }
     }
-
-    // ---- Carga de shapes ----
 
     private Map<String, ShapePath> cargarShapes(GtfsSource src) throws IOException {
         Map<String, TreeMap<Integer, LatLng>> raw = new HashMap<>();
@@ -210,7 +318,6 @@ public class MetroRepository {
             int idxLon = colIdx(cols, "shape_pt_lon");
             int idxSeq = colIdx(cols, "shape_pt_sequence");
             if (idxId < 0 || idxLat < 0 || idxLon < 0 || idxSeq < 0) {
-                // fallback a orden canónico GTFS
                 idxId = 0; idxLat = 1; idxLon = 2; idxSeq = 3;
             }
             String l;
@@ -237,12 +344,9 @@ public class MetroRepository {
     private ShapePath buildDisplayPath(Map<String, ShapePath> all, String id) {
         ShapePath direct = all.get(id);
         if (direct != null) return direct;
-        // fallback: primer shape que tenga puntos
         for (ShapePath p : all.values()) if (p.points.size() >= 2) return p;
         return null;
     }
-
-    // ---- Helpers de CSV ----
 
     static int colIdx(String[] header, String name) {
         for (int i = 0; i < header.length; i++) {
@@ -251,10 +355,7 @@ public class MetroRepository {
         return -1;
     }
 
-    // ---- Sources ----
-
     interface GtfsSource {
-        /** Intenta abrir los nombres en orden. Lanza FileNotFoundException si ninguno existe. */
         BufferedReader open(String... names) throws IOException;
     }
 
@@ -286,10 +387,4 @@ public class MetroRepository {
             throw new FileNotFoundException(Arrays.toString(names));
         }
     }
-
-    // ---- API usada por MapaFragment para dibujar ----
-
-    // (Nada más — la lógica de paralelo ya no se usa aquí porque cada shape
-    //  ya cubre su recorrido completo. Los displayL1/displayL2 son shapes
-    //  íntegros del propio fichero, sin fusión ni offsets.)
 }

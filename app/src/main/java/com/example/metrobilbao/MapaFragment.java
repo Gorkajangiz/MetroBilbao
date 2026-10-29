@@ -1,28 +1,32 @@
 package com.example.metrobilbao;
 
+import android.app.Dialog;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.ColorFilter;
 import android.graphics.Paint;
-import android.graphics.PixelFormat;
-import android.graphics.RadialGradient;
-import android.graphics.Shader;
 import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -34,16 +38,15 @@ import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MapColorScheme;
+import com.google.android.gms.maps.model.MapStyleOptions;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -51,8 +54,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 public class MapaFragment extends Fragment implements OnMapReadyCallback {
 
@@ -75,6 +80,24 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
     private static final long ANIM_FRAME_MS = 33L;
     private static final float Z_LINEA = 2f, Z_TREN = 20f, Z_ESTACION = 10f;
 
+    private static final String PREFS = "metro_prefs";
+    private static final String KEY_MAP_DARK = "map_dark_mode";
+
+    private static final int REFRESCO_SEG = 10;
+    private static final int GRACIA_POST_LLEGADA_SEG = 15;
+    private static final int MAX_PROXIMOS = 5;
+
+    private static final String MAP_STYLE_NO_POI =
+            "[" +
+                    "{\"featureType\":\"poi.business\",\"stylers\":[{\"visibility\":\"off\"}]}," +
+                    "{\"featureType\":\"poi.government\",\"stylers\":[{\"visibility\":\"off\"}]}," +
+                    "{\"featureType\":\"poi.medical\",\"stylers\":[{\"visibility\":\"off\"}]}," +
+                    "{\"featureType\":\"poi.place_of_worship\",\"stylers\":[{\"visibility\":\"off\"}]}," +
+                    "{\"featureType\":\"poi.school\",\"stylers\":[{\"visibility\":\"off\"}]}," +
+                    "{\"featureType\":\"poi.sports_complex\",\"stylers\":[{\"visibility\":\"off\"}]}," +
+                    "{\"featureType\":\"transit\",\"stylers\":[{\"visibility\":\"off\"}]}" +
+                    "]";
+
     private TrenGestorTiempoReal gestorTrenes;
     private HorarioGestor horarioGestor;
     private ShapePath pathMasterL1, pathMasterL2;
@@ -83,6 +106,9 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
     private final Map<String, String> vehiculosPorTrip = new ConcurrentHashMap<>();
     private final List<MetroGestor.Station> estacionesCache = new ArrayList<>();
     private final List<Marker> marcadoresEstaciones = new ArrayList<>();
+
+    private final List<ProximaSalida> salidasProximas = new ArrayList<>();
+    private final List<TextView> badgesProximos = new ArrayList<>();
 
     private volatile long lastFeedTs = 0L;
     private BitmapDescriptor iconoTrenL1, iconoTrenL2;
@@ -100,6 +126,7 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+
         SupportMapFragment mf = (SupportMapFragment)
                 getChildFragmentManager().findFragmentById(R.id.map_container);
         if (mf == null) {
@@ -108,39 +135,42 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
                     .replace(R.id.map_container, mf).commitNow();
         }
         mf.getMapAsync(this);
-    }
-
-    private void añadirVignette(ViewGroup root) {
-        View vignette = new View(requireContext());
-        vignette.setLayoutParams(new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        vignette.setClickable(false);
-        vignette.setFocusable(false);
-        vignette.setBackground(new Drawable() {
-            final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            @Override public void draw(Canvas c) {
-                int w = getBounds().width(), h = getBounds().height();
-                if (w <= 0 || h <= 0) return;
-                float r = Math.max(w, h) * 0.75f;
-                RadialGradient g = new RadialGradient(w / 2f, h / 2f, r,
-                        new int[]{Color.TRANSPARENT, Color.TRANSPARENT, 0xAA000000},
-                        new float[]{0f, 0.55f, 1f}, Shader.TileMode.CLAMP);
-                paint.setShader(g);
-                c.drawRect(0, 0, w, h, paint);
-            }
-            @Override public void setAlpha(int a) {}
-            @Override public void setColorFilter(ColorFilter cf) {}
-            @Override public int getOpacity() { return PixelFormat.TRANSLUCENT; }
-        });
-        root.addView(vignette);
+        View topBanner = view.findViewById(R.id.topBanner);
+        if (topBanner != null) {
+            final int origTop = topBanner.getPaddingTop();
+            ViewCompat.setOnApplyWindowInsetsListener(topBanner, (v, insets) -> {
+                Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                v.setPaddingRelative(
+                        v.getPaddingStart(),
+                        origTop + bars.top,
+                        v.getPaddingEnd(),
+                        v.getPaddingBottom());
+                return insets;
+            });
+        }
     }
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
         this.mapa = googleMap;
-        googleMap.setMapColorScheme(MapColorScheme.DARK);
+
+        SharedPreferences prefs = requireContext()
+                .getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        boolean dark = prefs.getBoolean(KEY_MAP_DARK, true);
+
+        googleMap.setMapColorScheme(dark ? MapColorScheme.DARK : MapColorScheme.LIGHT);
+        googleMap.setMapStyle(new MapStyleOptions(MAP_STYLE_NO_POI));
+        googleMap.setIndoorEnabled(false);
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                new LatLng(43.2630, -2.9350), 12.5f));
+                new LatLng(REF_LAT, REF_LNG), 13f));
+
+        googleMap.getUiSettings().setCompassEnabled(false);
+        googleMap.getUiSettings().setMapToolbarEnabled(false);
+        googleMap.getUiSettings().setZoomControlsEnabled(false);
+        googleMap.getUiSettings().setMyLocationButtonEnabled(false);
+        googleMap.getUiSettings().setIndoorLevelPickerEnabled(false);
+        googleMap.getUiSettings().setRotateGesturesEnabled(false);
+        googleMap.getUiSettings().setTiltGesturesEnabled(false);
 
         iconoTrenL1 = crearIconoTren(COLOR_L1);
         iconoTrenL2 = crearIconoTren(COLOR_L2);
@@ -148,10 +178,12 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
         googleMap.setOnMarkerClickListener(marker -> {
             Object tag = marker.getTag();
             if (tag instanceof HorarioGestor.TrenEstado) {
-                mostrarBottomSheetTren((HorarioGestor.TrenEstado) tag); return true;
+                mostrarBottomSheetTren((HorarioGestor.TrenEstado) tag);
+                return true;
             }
             if (tag instanceof MetroGestor.Station) {
-                mostrarBottomSheetEstacion((MetroGestor.Station) tag); return true;
+                mostrarBottomSheetEstacion((MetroGestor.Station) tag);
+                return true;
             }
             return false;
         });
@@ -161,56 +193,52 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
             if (est != null) mostrarBottomSheetEstacion(est);
         });
 
-        if (getView() instanceof ViewGroup) añadirVignette((ViewGroup) getView());
-
         mapaListo = true;
         iniciarMotorAnimacion();
         cargarTodoEnSegundoPlano();
     }
 
     private void cargarTodoEnSegundoPlano() {
-    final long t0 = System.currentTimeMillis();
-    MetroRepository.getInstance().init(requireContext(), new MetroRepository.Callback() {
-        @Override public void onReady(MetroRepository repo) {
-            if (!isAdded() || isRemoving() || !mapaListo) return;
+        final long t0 = System.currentTimeMillis();
+        MetroRepository.getInstance().init(requireContext(), new MetroRepository.Callback() {
+            @Override public void onReady(MetroRepository repo) {
+                if (!isAdded() || isRemoving() || !mapaListo) return;
 
-            pathMasterL1 = repo.getPathMasterL1();
-            pathMasterL2 = repo.getPathMasterL2();
-            horarioGestor = repo.getHorarioGestor();
+                pathMasterL1 = repo.getPathMasterL1();
+                pathMasterL2 = repo.getPathMasterL2();
+                horarioGestor = repo.getHorarioGestor();
 
-            estacionesCache.clear();
-            estacionesCache.addAll(repo.getEstaciones());
+                estacionesCache.clear();
+                estacionesCache.addAll(repo.getEstaciones());
 
-            // FIX #3: cada paso aislado, un fallo no tumba el resto
-            try { dibujarRecorridos(mapa); }
-            catch (Exception e) { android.util.Log.e(LOG_TAG, "Error dibujando", e); }
+                try { dibujarRecorridos(mapa); }
+                catch (Exception e) { android.util.Log.e(LOG_TAG, "Error dibujando", e); }
 
-            try {
-                BitmapDescriptor iconoEst = crearIconoEstacion(mapa.getCameraPosition().zoom);
-                for (MetroGestor.Station est : estacionesCache) {
-                    Marker m = mapa.addMarker(new MarkerOptions()
-                            .position(new LatLng(est.latitude, est.longitude))
-                            .title(est.name).icon(iconoEst)
-                            .anchor(0.5f, 0.5f).zIndex(Z_ESTACION));
-                    if (m != null) { m.setTag(est); marcadoresEstaciones.add(m); }
-                }
-            } catch (Exception e) { android.util.Log.e(LOG_TAG, "Error estaciones", e); }
+                try {
+                    BitmapDescriptor iconoEst = crearIconoEstacion(mapa.getCameraPosition().zoom);
+                    for (MetroGestor.Station est : estacionesCache) {
+                        Marker m = mapa.addMarker(new MarkerOptions()
+                                .position(new LatLng(est.latitude, est.longitude))
+                                .title(est.name).icon(iconoEst)
+                                .anchor(0.5f, 0.5f).zIndex(Z_ESTACION));
+                        if (m != null) { m.setTag(est); marcadoresEstaciones.add(m); }
+                    }
+                } catch (Exception e) { android.util.Log.e(LOG_TAG, "Error estaciones", e); }
 
-            iniciarFeedObservador();
-            android.util.Log.d(LOG_TAG, "App lista en "
-                    + (System.currentTimeMillis() - t0) + "ms");
-        }
+                iniciarFeedObservador();
+                android.util.Log.d(LOG_TAG, "App lista en "
+                        + (System.currentTimeMillis() - t0) + "ms");
+            }
 
-        @Override public void onError(Throwable t) {
-            if (!isAdded() || isRemoving()) return;
-            android.util.Log.e(LOG_TAG, "Error carga GTFS", t);
-            Toast.makeText(requireContext(),
-                    "Error cargando datos: " + t.getMessage(), Toast.LENGTH_LONG).show();
-            // Aunque falle, intentamos arrancar el feed de trenes
-            iniciarFeedObservador();
-        }
-    });
-}
+            @Override public void onError(Throwable t) {
+                if (!isAdded() || isRemoving()) return;
+                android.util.Log.e(LOG_TAG, "Error carga GTFS", t);
+                Toast.makeText(requireContext(),
+                        "Error cargando datos: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                iniciarFeedObservador();
+            }
+        });
+    }
 
     private BitmapDescriptor crearIconoEstacion(float zoom) {
         float d = getResources().getDisplayMetrics().density;
@@ -236,9 +264,9 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
         c.drawCircle(size/2f, size/2f, r, p);
         return BitmapDescriptorFactory.fromBitmap(bmp);
     }
-
     private void mostrarBottomSheetEstacion(MetroGestor.Station estacion) {
-        BottomSheetDialog dialog = new BottomSheetDialog(requireContext());
+        BottomSheetDialog dialog = new BottomSheetDialog(requireContext(),
+                R.style.Theme_MetroBilbao_BottomSheetDialog);
         View vista = getLayoutInflater().inflate(R.layout.display_estacion, null);
 
         TextView nombre = vista.findViewById(R.id.txtStationName);
@@ -247,6 +275,7 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
         TextView frec   = vista.findViewById(R.id.txtFrecuencia);
         TextView conex  = vista.findViewById(R.id.txtConexiones);
         TextView info   = vista.findViewById(R.id.txtInfo);
+        LinearLayout containerProx = vista.findViewById(R.id.containerProximosTrenes);
 
         nombre.setText(estacion.name);
         if (estacion.code != null && !estacion.code.trim().isEmpty())
@@ -258,39 +287,142 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
         conex.setText(EstacionInfo.conexiones(estacion.parentId));
         info.setText(EstacionInfo.info(estacion.name, estacion.parentId));
 
+        if (containerProx != null) {
+            llenarProximosTrenes(containerProx, estacion.parentId);
+        }
+
+        final Handler tickH = new Handler(Looper.getMainLooper());
+        final int[] ticks = {0};
+        final Runnable tickR = new Runnable() {
+            @Override public void run() {
+                if (!isAdded() || containerProx == null) return;
+                ticks[0]++;
+                if (ticks[0] % REFRESCO_SEG == 0) {
+                    llenarProximosTrenes(containerProx, estacion.parentId);
+                } else {
+                    actualizarBadgesProximos();
+                }
+                tickH.postDelayed(this, 1000);
+            }
+        };
+        tickH.postDelayed(tickR, 1000);
+
+        dialog.setOnDismissListener(d -> {
+            tickH.removeCallbacks(tickR);
+            salidasProximas.clear();
+            badgesProximos.clear();
+        });
+
         dialog.setContentView(vista);
         if (dialog.getWindow() != null)
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        int h = getResources().getDisplayMetrics().heightPixels;
+
+        final int h = getResources().getDisplayMetrics().heightPixels;
+
+        dialog.setOnShowListener(d -> {
+            FrameLayout sheet = dialog.findViewById(
+                    com.google.android.material.R.id.design_bottom_sheet);
+            if (sheet != null) {
+                sheet.setBackground(null);
+                ViewGroup.LayoutParams lp = sheet.getLayoutParams();
+                lp.height = (int) (h * 0.50);
+                sheet.setLayoutParams(lp);
+            }
+        });
+
         dialog.show();
+
         BottomSheetBehavior<FrameLayout> b = dialog.getBehavior();
         b.setFitToContents(false);
-        b.setHalfExpandedRatio(0.5f);
-        b.setExpandedOffset((int) (h * 0.5f));
-        b.setPeekHeight((int) (h * 0.5f));
+        b.setSkipCollapsed(true);
+        b.setHideable(false);                    // no se puede ocultar con drag del behavior
+        b.setDraggable(false);                   // el behavior no intercepta drags
+        b.setHalfExpandedRatio(0.50f);
+        b.setPeekHeight((int) (h * 0.50));
+        b.setExpandedOffset((int) (h * 0.50));
         b.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
-        View bottomSheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
-        if (bottomSheet != null) bottomSheet.setBackgroundColor(Color.TRANSPARENT);
-    }
+        final View dragHandle = vista.findViewById(R.id.dragHandle);
+        final FrameLayout sheet = dialog.findViewById(
+                com.google.android.material.R.id.design_bottom_sheet);
 
+        if (dragHandle != null && sheet != null) {
+            final float[] startRawY = {0f};
+            final float[] startTransY = {0f};
+            final float[] dyAcum = {0f};
+
+            dragHandle.setOnTouchListener((v, event) -> {
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        startRawY[0] = event.getRawY();
+                        startTransY[0] = sheet.getTranslationY();
+                        dyAcum[0] = 0f;
+                        return true;
+
+                    case MotionEvent.ACTION_MOVE: {
+                        float dy = event.getRawY() - startRawY[0];
+                        dyAcum[0] = dy;
+                        if (dy > 0f) {
+                            sheet.setTranslationY(startTransY[0] + dy);
+                        }
+                        return true;
+                    }
+
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        if (dyAcum[0] > 100f) {
+                            sheet.animate()
+                                    .translationY(startTransY[0] + sheet.getHeight())
+                                    .setDuration(200)
+                                    .withEndAction(() -> {
+                                        sheet.setTranslationY(startTransY[0]);
+                                        dialog.dismiss();
+                                    })
+                                    .start();
+                        } else {
+                            sheet.animate()
+                                    .translationY(startTransY[0])
+                                    .setDuration(200)
+                                    .start();
+                        }
+                        return true;
+                }
+                return false;
+            });
+        }
+    }
     private void mostrarBottomSheetTren(HorarioGestor.TrenEstado tren) {
-        BottomSheetDialog dialog = new BottomSheetDialog(requireContext());
+        BottomSheetDialog dialog = new BottomSheetDialog(requireContext(),
+                R.style.Theme_MetroBilbao_BottomSheetDialog);
         View vista = getLayoutInflater().inflate(R.layout.display_tren, null);
 
-        TextView titulo = vista.findViewById(R.id.txtTrenTitulo);
-        TextView id     = vista.findViewById(R.id.txtTrenId);
-        TextView proxTv = vista.findViewById(R.id.txtTrenProxima);
-        TextView hora   = vista.findViewById(R.id.txtTrenHora);
-        TextView tripTv = vista.findViewById(R.id.txtTrenTrip);
-        Button verEst   = vista.findViewById(R.id.btnVerEstacion);
+        TextView titulo       = vista.findViewById(R.id.txtTrenTitulo);
+        TextView id           = vista.findViewById(R.id.txtTrenId);
+        TextView proxTv       = vista.findViewById(R.id.txtTrenProxima);
+        TextView hora         = vista.findViewById(R.id.txtTrenHora);
+        TextView destinoTv    = vista.findViewById(R.id.txtTrenDestino);
+        TextView puntualidadTv= vista.findViewById(R.id.txtTrenPuntualidad);
+        TextView tripTv       = vista.findViewById(R.id.txtTrenTrip);
+        Button verEst         = vista.findViewById(R.id.btnVerEstacion);
 
         titulo.setText("Línea " + tren.linea + " a " + tren.destino);
         titulo.setTextColor(tren.lineaColor);
-        id.setText("Unidad " + tren.vehicleId + " · Viaje " + tren.tripId);
-        tripTv.setText("Puntualidad: En hora según horario oficial · Destino: " + tren.destino);
 
-        // FIX #5: cuenta atrás interactiva mientras el bottom sheet está abierto
-        final android.os.Handler countdown = new android.os.Handler(android.os.Looper.getMainLooper());
+        boolean unidadEsTrip = tren.vehicleId != null
+                && tren.vehicleId.equals(tren.tripId);
+        if (unidadEsTrip) {
+            id.setText("Unidad no disponible · Viaje " + tren.tripId);
+        } else {
+            id.setText("Unidad " + tren.vehicleId + " · Viaje " + tren.tripId);
+        }
+
+        if (destinoTv != null)
+            destinoTv.setText(tren.destino == null ? "" : tren.destino);
+        if (puntualidadTv != null)
+            puntualidadTv.setText("En hora según horario oficial");
+        if (tripTv != null)
+            tripTv.setText("Servicio regular · Línea " + tren.linea);
+
+        final Handler countdown = new Handler(Looper.getMainLooper());
         final int[] restante = { Math.max(0, tren.segundosLlegadaProxima) };
 
         final Runnable actualizar = new Runnable() {
@@ -322,7 +454,6 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
         countdown.post(actualizar);
         dialog.setOnDismissListener(d -> countdown.removeCallbacks(actualizar));
 
-        // Botón estación
         String stopBuscada = tren.enEstacion ? tren.idEstacionActual : tren.idProximaEstacion;
         MetroGestor.Station cercana = buscarEstacion(stopBuscada, tren.posicion);
         if (cercana != null) {
@@ -335,22 +466,81 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
         dialog.setContentView(vista);
         if (dialog.getWindow() != null)
             dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        int h = getResources().getDisplayMetrics().heightPixels;
+
+        final int h = getResources().getDisplayMetrics().heightPixels;
+
+        dialog.setOnShowListener(d -> {
+            FrameLayout sheet = dialog.findViewById(
+                    com.google.android.material.R.id.design_bottom_sheet);
+            if (sheet != null) {
+                sheet.setBackground(null);
+                ViewGroup.LayoutParams lp = sheet.getLayoutParams();
+                lp.height = (int) (h * 0.50);
+                sheet.setLayoutParams(lp);
+            }
+        });
+
         dialog.show();
+
         BottomSheetBehavior<FrameLayout> b = dialog.getBehavior();
         b.setFitToContents(false);
-        b.setHalfExpandedRatio(0.5f);
-        b.setExpandedOffset((int) (h * 0.5f));   // <- tope arriba = mitad de pantalla
-        b.setPeekHeight((int) (h * 0.5f));
+        b.setSkipCollapsed(true);
+        b.setHideable(false);                    // no se puede ocultar con drag del behavior
+        b.setDraggable(false);                   // el behavior no intercepta drags
+        b.setHalfExpandedRatio(0.50f);
+        b.setPeekHeight((int) (h * 0.50));
+        b.setExpandedOffset((int) (h * 0.50));
         b.setState(BottomSheetBehavior.STATE_HALF_EXPANDED);
-
-        // FIX #6: quitar el fondo blanco del contenedor interno del BottomSheet
-        View bottomSheet = dialog.findViewById(
+        final View dragHandle = vista.findViewById(R.id.dragHandle);
+        final FrameLayout sheet = dialog.findViewById(
                 com.google.android.material.R.id.design_bottom_sheet);
-        if (bottomSheet != null) bottomSheet.setBackgroundColor(Color.TRANSPARENT);
+
+        if (dragHandle != null && sheet != null) {
+            final float[] startRawY = {0f};
+            final float[] startTransY = {0f};
+            final float[] dyAcum = {0f};
+
+            dragHandle.setOnTouchListener((v, event) -> {
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        startRawY[0] = event.getRawY();
+                        startTransY[0] = sheet.getTranslationY();
+                        dyAcum[0] = 0f;
+                        return true;
+
+                    case MotionEvent.ACTION_MOVE: {
+                        float dy = event.getRawY() - startRawY[0];
+                        dyAcum[0] = dy;
+                        if (dy > 0f) {
+                            sheet.setTranslationY(startTransY[0] + dy);
+                        }
+                        return true;
+                    }
+
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        if (dyAcum[0] > 100f) {
+                            sheet.animate()
+                                    .translationY(startTransY[0] + sheet.getHeight())
+                                    .setDuration(200)
+                                    .withEndAction(() -> {
+                                        sheet.setTranslationY(startTransY[0]);
+                                        dialog.dismiss();
+                                    })
+                                    .start();
+                        } else {
+                            sheet.animate()
+                                    .translationY(startTransY[0])
+                                    .setDuration(200)
+                                    .start();
+                        }
+                        return true;
+                }
+                return false;
+            });
+        }
     }
 
-    // FIX #5: helper de formato de segundos
     private static String formatSegundos(int s) {
         if (s < 60) return s + " s";
         int m = s / 60;
@@ -408,7 +598,109 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
         }
     }
 
+    private static class ProximaSalida {
+        final int sec;
+        final String headsign;
+        ProximaSalida(int sec, String headsign) { this.sec = sec; this.headsign = headsign; }
+    }
 
+    private static String normalizeId(String id) {
+        if (id == null) return "";
+        return id.endsWith(".0") ? id.substring(0, id.length() - 2) : id;
+    }
+
+    private int color(int res) {
+        return ContextCompat.getColor(requireContext(), res);
+    }
+
+    private void llenarProximosTrenes(LinearLayout container, String stopNormRaw) {
+        if (container == null) return;
+        container.removeAllViews();
+        salidasProximas.clear();
+        badgesProximos.clear();
+
+        if (horarioGestor == null) {
+            agregarTextoVacio(container, "Cargando horarios…");
+            return;
+        }
+
+        String stopNorm = normalizeId(stopNormRaw);
+        if (stopNorm.isEmpty()) {
+            agregarTextoVacio(container, "Información no disponible");
+            return;
+        }
+
+        final int ahora = HorarioGestor.ahoraSegundosMadrid();
+        final List<ProximaSalida> encontradas = new ArrayList<>();
+
+        List<HorarioGestor.Trip> trips = horarioGestor.getTripsPorServicio()
+                .get(horarioGestor.getServicioActivo());
+        if (trips == null) trips = new ArrayList<>();
+
+        for (HorarioGestor.Trip t : trips) {
+            for (HorarioGestor.StopTime st : t.stops) {
+                if (!normalizeId(st.stopId).equals(stopNorm)) continue;
+                int delta = st.arrivalSec - ahora;
+                if (delta > 3600) continue;
+                if (delta < -GRACIA_POST_LLEGADA_SEG) continue;
+                encontradas.add(new ProximaSalida(st.arrivalSec,
+                        t.headsign == null ? "" : t.headsign));
+            }
+        }
+        Collections.sort(encontradas, (a, b) -> Integer.compare(a.sec, b.sec));
+
+        int total = Math.min(encontradas.size(), MAX_PROXIMOS);
+        if (total == 0) {
+            agregarTextoVacio(container, "Sin trenes en los próximos 60 min.");
+            return;
+        }
+
+        LayoutInflater inf = LayoutInflater.from(requireContext());
+        for (int i = 0; i < total; i++) {
+            ProximaSalida s = encontradas.get(i);
+            View fila = inf.inflate(R.layout.item_tren, container, false);
+            ((TextView) fila.findViewById(R.id.txtHora)).setText(
+                    String.format(Locale.US, "%02d:%02d",
+                            (s.sec / 3600) % 24, (s.sec / 60) % 60));
+            ((TextView) fila.findViewById(R.id.txtDestinoTren)).setText(s.headsign);
+
+            TextView badge = fila.findViewById(R.id.txtEnMin);
+            if (i == 0) {
+                badge.setBackgroundResource(R.drawable.bg_badge_solid);
+                badge.setTextColor(color(R.color.white));
+            }
+            salidasProximas.add(s);
+            badgesProximos.add(badge);
+            container.addView(fila);
+        }
+        actualizarBadgesProximos();
+    }
+
+    private void actualizarBadgesProximos() {
+        final int ahora = HorarioGestor.ahoraSegundosMadrid();
+        for (int i = 0; i < salidasProximas.size(); i++) {
+            ProximaSalida s = salidasProximas.get(i);
+            TextView badge = badgesProximos.get(i);
+            if (badge == null) continue;
+
+            int restante = s.sec - ahora;
+            if (restante > 0) {
+                int min = Math.max(1, (restante + 59) / 60);
+                badge.setText("en " + min + " min");
+            } else {
+                badge.setText("en estación");
+            }
+        }
+    }
+
+    private void agregarTextoVacio(LinearLayout container, String texto) {
+        TextView tv = new TextView(requireContext());
+        tv.setText(texto);
+        tv.setTextColor(color(R.color.text_secondary));
+        tv.setTextSize(13);
+        tv.setPadding(0, 8, 0, 4);
+        container.addView(tv);
+    }
     private void dibujarRecorridos(GoogleMap g) {
         if (pathMasterL1 == null || pathMasterL2 == null) return;
         drawLineWithGaps(g, pathMasterL1.points, COLOR_L1);
@@ -470,13 +762,11 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
         return new LatLng(p.latitude + (py * m) / METERS_PER_DEG_LAT,
                 p.longitude + (px * m) / mLng);
     }
-
     private void iniciarFeedObservador() {
         gestorTrenes = new TrenGestorTiempoReal();
         gestorTrenes.start(new TrenGestorTiempoReal.Callback() {
             @Override public void onUpdate(List<TrenGestorTiempoReal.TrainPosition> trenes,
                                            long ts, long id, boolean same) {
-                // FIX #10: descartar feed obsoleto (S3 a veces sirve snapshot anterior)
                 if (ts > 0 && ts < lastFeedTs) {
                     android.util.Log.w(LOG_TAG, "Feed obsoleto descartado: " + ts + " < " + lastFeedTs);
                     return;
@@ -557,6 +847,8 @@ public class MapaFragment extends Fragment implements OnMapReadyCallback {
         for (Marker m : marcadoresEstaciones) m.remove();
         marcadoresEstaciones.clear();
         estacionesCache.clear();
+        salidasProximas.clear();
+        badgesProximos.clear();
         super.onDestroyView();
     }
 

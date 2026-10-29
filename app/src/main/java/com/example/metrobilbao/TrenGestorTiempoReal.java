@@ -56,8 +56,6 @@ public class TrenGestorTiempoReal {
         public final long vehicleTimestamp;
         public final long feedTimestamp;
         public final String stopId;
-
-        // NUEVOS
         public final int currentStatus;       // 0=INCOMING_AT, 1=STOPPED_AT, 2=IN_TRANSIT_TO, -1=desconocido
         public final int currentStopSequence; // -1 = desconocido
         public final long fetchedAtMs;        // para descartar hints viejos
@@ -160,8 +158,6 @@ public class TrenGestorTiempoReal {
 
                 long vehicleTs = v.hasTimestamp() ? v.getTimestamp() : 0L;
                 String stopId = v.hasStopId() ? v.getStopId() : "";
-
-                // NUEVOS
                 int currentStatus = -1;
                 if (v.hasCurrentStatus()) {
                     currentStatus = v.getCurrentStatus().getNumber();
@@ -176,8 +172,6 @@ public class TrenGestorTiempoReal {
                         vehicleId, tripId, routeId, entityId,
                         new LatLng(lat, lon), vehicleTs, feedTs, stopId,
                         currentStatus, currentStopSequence, fetchedAtMs));
-
-                // Log de depuración: comprobar qué envía realmente Metro Bilbao
                 android.util.Log.d(LOG_TAG, "hint trip=" + tripId
                         + " stop=" + stopId
                         + " status=" + currentStatus

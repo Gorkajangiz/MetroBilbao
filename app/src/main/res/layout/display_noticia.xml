@@ -1,87 +1,97 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/bg_bottom_sheet"
-    android:fillViewport="true">
+    app:cardCornerRadius="20dp"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@color/bg_bottom_sheet">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp"
-        android:paddingBottom="28dp">
+        android:orientation="vertical">
 
-        <!-- Asa de arrastre -->
-        <View
-            android:layout_width="40dp"
-            android:layout_height="4dp"
-            android:layout_gravity="center_horizontal"
-            android:background="#55FFFFFF"
-            android:layout_marginBottom="16dp"/>
 
-        <!-- Imagen opcional con esquinas redondeadas -->
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/detailImgCard"
+        <ImageView
+            android:id="@+id/detailImgNoticia"
             android:layout_width="match_parent"
             android:layout_height="200dp"
+            android:scaleType="centerCrop"
             android:visibility="gone"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="0dp">
+            android:contentDescription="Imagen de la noticia"/>
 
-            <ImageView
-                android:id="@+id/detailImgNoticia"
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none">
+
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop"/>
-        </com.google.android.material.card.MaterialCardView>
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
 
-        <!-- Título -->
-        <TextView
-            android:id="@+id/detailTituloNoticia"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#FFFFFF"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:lineSpacingMultiplier="1.1"
-            android:layout_marginTop="16dp"/>
+                <TextView
+                    android:id="@+id/detailFechaNoticia"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/metro_orange"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.04"
+                    android:layout_marginBottom="8dp"/>
 
-        <!-- Fecha legible -->
-        <TextView
-            android:id="@+id/detailFechaNoticia"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#99FFFFFF"
-            android:textSize="13sp"
-            android:layout_marginTop="6dp"/>
+                <TextView
+                    android:id="@+id/detailTituloNoticia"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_primary"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:lineSpacingMultiplier="1.1"/>
 
-        <!-- Separador -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#22FFFFFF"
-            android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp"/>
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/separator"
+                    android:layout_marginTop="14dp"
+                    android:layout_marginBottom="14dp"/>
 
-        <!-- Cuerpo -->
-        <TextView
-            android:id="@+id/detailDescNoticia"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textColor="#E0FFFFFF"
-            android:textSize="15sp"
-            android:lineSpacingMultiplier="1.35"/>
+                <TextView
+                    android:id="@+id/detailDescNoticia"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="15sp"
+                    android:lineSpacingMultiplier="1.4"/>
 
-        <!-- Link opcional -->
-        <Button
-            android:id="@+id/detailBtnLink"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Abrir noticia completa"
-            android:visibility="gone"
-            android:layout_marginTop="24dp"/>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="end"
+                    android:layout_marginTop="20dp">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/detailBtnLink"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Abrir noticia"
+                        android:visibility="gone"
+                        android:layout_marginEnd="4dp"/>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/detailBtnCerrar"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cerrar"/>
+
+                </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
     </LinearLayout>
-</ScrollView>
+</com.google.android.material.card.MaterialCardView>
